@@ -8,7 +8,7 @@
 # Authors (R script): Theodore S. Brook, Tom Versluys (script 1)
 #
 # Authors (manuscript): Theodore S. Brook, Tom Versluys, Bi Tra Serges Doubi,
-#          Jahcub Trew, Sam Acors, Kyle Macleod, Louis Bell-Roberts, 
+#          Sam Acors, Jahcub Trew, Kyle Macleod, Louis Bell-Roberts, 
 #          Katarina Pipoini, Jean Louis Konan, Konan Engueran Djaha, Hala N'klo,
 #          Benjamin J Roberts, CM (Tilly) Collins, Matteo Fumagalli,
 #          Julien Godwin, Vincent Savolainen
