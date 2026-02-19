@@ -972,6 +972,22 @@ write_pheno <- function(df, trait_col, path) {
     fwrite(path, sep = "\t", quote = FALSE, col.names = TRUE)
 }
 
+# --- 4c-ii. Write PLINK-format phenotype file with a comment header ---
+# Used for the top-level drought_slope_estimates/ copies that accompany
+# genomic analyses. The comment line is written first; data are appended.
+write_pheno_with_header <- function(df, trait_col, path, comment) {
+  writeLines(paste0("# ", comment), con = path)
+  df %>%
+    transmute(
+      FID   = sequencing_id,
+      IID   = sequencing_id,
+      PHENO = as.numeric(.data[[trait_col]])
+    ) %>%
+    filter(is.finite(PHENO)) %>%
+    arrange(FID) %>%
+    fwrite(path, sep = "\t", quote = FALSE, col.names = TRUE, append = TRUE)
+}
+
 # --- 4d. Print and log reaction norm descriptive summary ---
 summarise_rn <- function(tree_all, tree_filtered, annualised, label) {
   
@@ -1064,7 +1080,7 @@ fwrite(tree_main, file.path(main_dir, "reaction_norms_main_dataset.csv"))
 fwrite(pheno_main, file.path(main_dir, "phenotypes_sequenced_main_dataset.csv"))
 
 write_pheno(pheno_main, "slope_q_lin",
-            file.path(main_dir, sprintf("pheno_slope_q_lin_%s_%s.txt", x1_linearise, x2_linearise)))
+            file.path(main_dir, "drought_slope_estimates.txt"))
 write_pheno(pheno_main, "intercept", file.path(main_dir, "pheno_intercept.txt"))
 write_pheno(pheno_main, "beta1",     file.path(main_dir, "pheno_beta1.txt"))
 write_pheno(pheno_main, "beta2",     file.path(main_dir, "pheno_beta2.txt"))
@@ -1072,6 +1088,24 @@ write_pheno(pheno_main, "beta2",     file.path(main_dir, "pheno_beta2.txt"))
 sink()
 cat("Outputs saved to:", main_dir, "\n")
 cat("Summary log     :", log_main, "\n\n")
+
+# --- Drought slope estimates (linearised -1 to 0 RDI-18, sequenced trees only) ---
+drought_slope_dir <- "drought_slope_estimates"
+dir.create(drought_slope_dir, showWarnings = FALSE, recursive = TRUE)
+
+write_pheno_with_header(
+  pheno_main, "slope_q_lin",
+  file.path(drought_slope_dir, "main_dataset.txt"),
+  comment = paste0("REMOVE THIS TEXT BEFORE RUNNING GENOMIC ANALYSES. ",
+                   "Phenotype file used in genomic analyses (GWAS). ",
+                   "Linearised drought slope (-1 ≤ RDI-18 ≤ 0), ",
+                   "main dataset (base filter). ",
+                   "Key: FID/IID = sequencing ID to match genomic data; ",
+                   "PHENO = drought slope estimate.")
+)
+
+cat("Drought slope estimates written to:",
+    file.path(drought_slope_dir, "main_dataset.txt"), "\n\n")
 
 
 # ==============================================================================
@@ -1126,7 +1160,7 @@ fwrite(tree_supp1,         file.path(supp1_dir, "reaction_norms_supporting_datas
 fwrite(pheno_supp1,        file.path(supp1_dir, "phenotypes_sequenced_supporting_dataset_1.csv"))
 
 write_pheno(pheno_supp1, "slope_q_lin",
-            file.path(supp1_dir, sprintf("pheno_slope_q_lin_%s_%s_stringent.txt", x1_linearise, x2_linearise)))
+            file.path(supp1_dir, "drought_slope_estimates.txt"))
 write_pheno(pheno_supp1, "intercept", file.path(supp1_dir, "pheno_intercept_stringent.txt"))
 write_pheno(pheno_supp1, "beta1",     file.path(supp1_dir, "pheno_beta1_stringent.txt"))
 write_pheno(pheno_supp1, "beta2",     file.path(supp1_dir, "pheno_beta2_stringent.txt"))
@@ -1134,6 +1168,21 @@ write_pheno(pheno_supp1, "beta2",     file.path(supp1_dir, "pheno_beta2_stringen
 sink()
 cat("Outputs saved to:", supp1_dir, "\n")
 cat("Summary log     :", log_supp1, "\n\n")
+
+# --- Drought slope estimates (linearised -1 to 0 RDI-18, sequenced trees only) ---
+write_pheno_with_header(
+  pheno_supp1, "slope_q_lin",
+  file.path(drought_slope_dir, "supporting_dataset_1.txt"),
+  comment = paste0("REMOVE THIS TEXT BEFORE RUNNING GENOMIC ANALYSES. ",
+                   "Phenotype file used in genomic analyses (GWAS). ",
+                   "Linearised drought slope (-1 ≤ RDI-18 ≤ 0), ",
+                   "supporting dataset 1 (stringent filter). ",
+                   "Key: FID/IID = sequencing ID to match genomic data; ",
+                   "PHENO = drought slope estimate.")
+)
+
+cat("Drought slope estimates written to:",
+    file.path(drought_slope_dir, "supporting_dataset_1.txt"), "\n\n")
 
 
 # ==============================================================================
@@ -2043,4 +2092,3 @@ ggsave(file.path(output_dir, "FigS1.jpg"),
 
 cat("Figure saved: FigS1.png / FigS1.jpg\n")
 cat("=== Script 6 complete. Outputs in:", output_dir, "===\n")
-
