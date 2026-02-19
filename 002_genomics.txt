@@ -65,11 +65,11 @@
 # ==============================================================================
 
 # --- Input files ---
-VCF_IN="002_genomics_inputs/input.vcf.gz"
+VCF_IN="input.vcf.gz"
 REFERENCE_GENOME="Cocos_nucifera_ASM812446v1/ncbi_dataset/data/GCA_008124465.1/GCA_008124465.1_ASM812446v1_genomic.fna"
 #	(https://doi.org/10.1093/gigascience/gix095)
-CONTIG_MAP="002_genomics_inputs/contig_map.txt"
-PHENOTYPE_FILE="002_genomics_inputs/drought_slope_estimates/main_dataset.txt"
+CONTIG_MAP="contig_map.txt"
+PHENOTYPE_FILE="drought_slope_estimates/main_dataset.txt"
 
 # --- Filtering parameters ---
 MIN_GENOTYPE_DEPTH=3
