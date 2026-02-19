@@ -1,0 +1,332 @@
+################################################################################
+# SCRIPTS FOR ALL THE QUANTITATIVE GENOMIC ANALYSIS IN BROOK ET AL. (2026)
+#
+#
+# Article title: Genomic architecture and breeding trade-offs of coconut
+#                drought tolerance
+#
+# Authors (genomic analyses): Theodore S. Brook, Sam Acors
+#
+# Authors (manuscript): Theodore S. Brook, Tom Versluys, Bi Tra Serges Doubi,
+#          Jahcub Trew, Sam Acors, Kyle Macleod, Louis Bell-Roberts,
+#          Katarina Pipoini, Jean Louis Konan, Konan Engueran Djaha, Hala N'klo,
+#          Benjamin J Roberts, CM (Tilly) Collins, Matteo Fumagalli,
+#          Julien Godwin, Vincent Savolainen
+#
+# All code is for use in Bash/Linux unless specified otherwise
+################################################################################
+
+
+################################################################################
+# OVERVIEW
+#
+# Description:
+#   Performs quantitative genomic analyses including variant filtering, PCA,
+#   GRM construction, genetic diversity statistics, SNP-based heritability
+#   (genome-wide and per-chromosome), GWAS, polygenic risk scoring (with and
+#   without LD clumping), GEBV estimation, and genomic inflation factor
+#   calculation.
+#
+#   Initial read trimming was performed by the Centre for Genomic Research.
+#   Preceding bioinformatic processing was performed by Biomarker Technologies.
+#
+#   Note, this is for the main dataset. The same analyses, besides the depth
+#   filter can be used on the supporting datasets.
+#
+# Input files:
+#   - VCF_IN               : VCF file supplied by Biomarker Technologies
+#   - REFERENCE_GENOME     : Reference genome FASTA file
+#				(https://doi.org/10.1093/gigascience/gix095)
+#   - CONTIG_MAP           : Chromosome renaming map for bcftools annotate
+#   - PHENOTYPE_FILE       : Drought slope estimates for GCTA (REML and MLMA)
+#
+# Output files (by section):
+#   Section 1  : $VCF_2                    (depth-filtered VCF)
+#   Section 2  : $PLINK_PREFIX_1.*         (PLINK bed/bim/fam, full)
+#   Section 3  : $PLINK_PREFIX_2.*         (PLINK bed/bim/fam, chr-filtered)
+#   Section 4  : $PCA_PREFIX.eigenvec	   (per-sample eigenvectors, PCs 1–3)
+#   Section 5  : $GRM_PREFIX.*             (GRM files)
+#   Section 6  : $VCF_3                    (GL-converted, chr-filtered VCF)
+#                $SAF_PREFIX.saf.*         (ANGSD site allele frequency)
+#                <sample>.est.ml           (per-sample folded SFS)
+#   Section 7  : freq.frq, freqx.frqx, het.het, hardy.hwe, missing.lmiss/.imiss
+#   Section 8  : $h2_PREFIX.hsq            (genome-wide SNP heritability)
+#   Section 9  : per_chr_h2_results.txt    (per-chromosome SNP heritability)
+#   Section 10 : $GWAS_PREFIX.mlma         (MLMA per-SNP statistics)
+#   Section 11 : $PRS_PREFIX.profile       (PRS without clumping)
+#                $CLUMP_PRS_PREFIX.profile (PRS with LD clumping)
+#   Section 12 : $GEBV_PREFIX.indi.blp     (GEBVs)
+#   Section 13 : lambda_gc                 (genomic inflation factor; R object)
+################################################################################
+
+
+# ==============================================================================
+# VARIABLE DEFINITIONS
+# ==============================================================================
+
+# --- Input files ---
+VCF_IN="002_genomics_inputs/input.vcf.gz"
+REFERENCE_GENOME="Cocos_nucifera_ASM812446v1/ncbi_dataset/data/GCA_008124465.1/GCA_008124465.1_ASM812446v1_genomic.fna"
+#	(https://doi.org/10.1093/gigascience/gix095)
+CONTIG_MAP="002_genomics_inputs/contig_map.txt"
+PHENOTYPE_FILE="002_genomics_inputs/drought_slope_estimates/main_dataset.txt"
+
+# --- Filtering parameters ---
+MIN_GENOTYPE_DEPTH=3
+CHROMOSOMES="1-16"
+NUMBER_THREADS=16
+
+# --- Intermediate and output file paths ---
+VCF_1="input_raw.vcf.gz"
+VCF_2="depth_filtered.vcf.gz"
+VCF_3="gl_converted_chr_filtered.vcf.gz"
+
+PLINK_PREFIX_1="plink_full"
+PLINK_PREFIX_2="plink_chr_filtered"
+
+PCA_PREFIX="pca"
+GRM_PREFIX="grm"
+SAF_PREFIX="angsd_saf"
+
+h2_PREFIX="h2_genome_wide"
+GWAS_PREFIX="gwas"
+CLUMP_INPUT="clump_input.txt"
+CLUMP_PLINK_PREFIX="clumped"
+CLUMPED_SNPS="clumped_snps.txt"
+PRS_SCORES_FILE="prs_scores.txt"
+PRS_PREFIX="prs"
+CLUMP_PRS_SCORES_FILE="prs_score_clumped.txt"
+CLUMP_PRS_PREFIX="prs_clumped"
+GEBV_PREFIX="gebv"
+
+# ==============================================================================
+# 1. DEPTH FILTER (MIN_GENOTYPE_DEPTH = 3)
+# ==============================================================================
+
+# Genotype calls with depth below MIN_GENOTYPE_DEPTH are set to missing (.)
+
+bcftools view "$VCF_IN" | \
+bcftools filter -S . -e "FMT/DP < $MIN_GENOTYPE_DEPTH" -O z -o "$VCF_2"
+
+tabix -p vcf "$VCF_2"
+
+# ==============================================================================
+# 2. CONVERT VCF TO PLINK FORMAT
+# ==============================================================================
+
+plink --vcf "$VCF_2" \
+      --allow-extra-chr \
+      --make-bed \
+      --out "$PLINK_PREFIX_1"
+
+# ==============================================================================
+# 3. FILTER TO CHROMOSOMES 1-16
+# ==============================================================================
+
+# Retain only SNPs mapped to the 16 assembled coconut chromosomes
+
+plink --bfile "$PLINK_PREFIX_1" \
+      --allow-extra-chr \
+      --chr "$CHROMOSOMES" \
+      --make-bed \
+      --out "$PLINK_PREFIX_2"
+
+# ==============================================================================
+# 4. PRINCIPAL COMPONENT ANALYSIS (PCA)
+# ==============================================================================
+
+plink --bfile "$PLINK_PREFIX_2" \
+      --allow-extra-chr \
+      --pca 3 \
+      --out "$PCA_PREFIX"
+
+# ==============================================================================
+# 5. GENOMIC RELATIONSHIP MATRIX (GRM)
+# ==============================================================================
+
+gcta64 --bfile "$PLINK_PREFIX_2" \
+       --make-grm \
+       --out "$GRM_PREFIX"
+
+# ==============================================================================
+# 6. GENETIC DIVERSITY STATISTICS: PRE-DEPTH FILTER (ANGSD)
+# ==============================================================================
+
+# PL fields are converted to GL format, chromosomes 1-16 are retained, and
+# contigs are renamed prior to running ANGSD. A folded site frequency spectrum
+# (SFS) is then estimated for each sample individually.
+
+# Convert PL to GL, filter to chromosomes 1-16, and rename contigs
+bcftools +tag2tag "$VCF_IN" -- -r --pl-to-gl \
+    | bcftools view -r 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 \
+    | bcftools annotate --rename-chrs "$CONTIG_MAP" -O z -o "$VCF_3"
+
+tabix -p vcf "$VCF_3"
+
+# Compute site allele frequency likelihoods across all samples
+angsd -vcf-gl "$VCF_3" \
+      -anc "$REFERENCE_GENOME" \
+      -doSaf 1 \
+      -doMajorMinor 1 \
+      -nThreads "$NUMBER_THREADS" \
+      -out "$SAF_PREFIX"
+
+# Estimate per-sample folded SFS
+bcftools query -l "$VCF_3" > samples.txt
+N_SAMPLES=$(wc -l < samples.txt)
+
+for i in $(seq 0 $((N_SAMPLES - 1))); do
+    SAMPLE=$(sed -n "$((i+1))p" samples.txt)
+    realSFS -fold 1 "${SAF_PREFIX}.saf.idx" \
+            -bootstrap 0 \
+            -nsites 1 \
+            -sample "$i" \
+            > "${SAMPLE}.est.ml"
+done
+
+# ==============================================================================
+# 7. GENETIC DIVERSITY STATISTICS: POST-DEPTH FILTER (PLINK)
+# ==============================================================================
+
+plink --bfile "$PLINK_PREFIX_2" --freq    --out freq
+plink --bfile "$PLINK_PREFIX_2" --freqx   --out freqx
+plink --bfile "$PLINK_PREFIX_2" --het     --out het
+plink --bfile "$PLINK_PREFIX_2" --hardy   --out hardy
+plink --bfile "$PLINK_PREFIX_2" --missing --out missing
+
+# ==============================================================================
+# 8. GENOME-WIDE SNP-BASED HERITABILITY (REML)
+# ==============================================================================
+
+# The top 3 principal components are included as quantitative covariates
+# to control for population structure
+
+gcta64 --reml \
+       --grm "$GRM_PREFIX" \
+       --pheno "$PHENOTYPE_FILE" \
+       --qcovar "$PCA_PREFIX".eigenvec \
+       --out "$h2_PREFIX" \
+       --thread-num "$NUMBER_THREADS"
+
+# ==============================================================================
+# 9. PER-CHROMOSOME SNP-BASED HERITABILITY (REML)
+# ==============================================================================
+
+# A separate GRM and REML model is fitted for each chromosome. The --reml-no-
+# constrain flag is used to allow negative heritability estimates, which can
+# occur when a chromosome explains a negligible proportion of variance.
+# Results are appended to per_chr_h2_results.txt.
+
+echo -e "CHR\tNUM_SNPS\tH2" > per_chr_h2_results.txt
+
+for CHR in {1..16}; do
+
+  CHROMOSOME_PREFIX="chr${CHR}"
+
+  # Count SNPs on this chromosome
+  NUM_SNPS=$(awk -v chr="$CHR" '$1==chr {count++} END {print count}' "$PLINK_PREFIX_2".bim)
+
+  # Build chromosome-specific GRM
+  gcta64 --bfile "$PLINK_PREFIX_2" \
+         --chr "$CHR" \
+         --make-grm \
+         --out "$CHROMOSOME_PREFIX"
+
+  # Run REML for this chromosome
+  gcta64 --reml \
+         --grm "$CHROMOSOME_PREFIX" \
+         --reml-no-constrain \
+         --pheno "$PHENOTYPE_FILE" \
+         --qcovar "$PCA_PREFIX".eigenvec \
+         --out "${CHROMOSOME_PREFIX}_reml"
+
+  # Extract V(G)/Vp; set to NA if the output file is absent or unparsable
+  if [[ -f "${CHROMOSOME_PREFIX}_reml.hsq" ]]; then
+    H2=$(awk '$1=="V(G)/Vp" {print $2}' "${CHROMOSOME_PREFIX}_reml.hsq")
+    if ! [[ $H2 =~ ^[0-9.eE+-]+$ ]]; then
+      H2="NA"
+    fi
+  else
+    H2="NA"
+  fi
+
+  echo -e "${CHR}\t${NUM_SNPS}\t${H2}" >> per_chr_h2_results.txt
+
+done
+
+# ==============================================================================
+# 10. GENOME-WIDE ASSOCIATION STUDY (MLMA-LOCO GWAS)
+# ==============================================================================
+
+gcta64 --mlma \
+       --bfile "$PLINK_PREFIX_2" \
+       --grm "$GRM_PREFIX" \
+       --pheno "$PHENOTYPE_FILE" \
+       --qcovar "$PCA_PREFIX".eigenvec \
+       --out "$GWAS_PREFIX"
+
+# ==============================================================================
+# 11. POLYGENIC RISK SCORES (PRS)
+# ==============================================================================
+
+# --- 11a. PRS without LD clumping ---
+
+# Retain SNPs with p < 0.05 and extract SNP ID, effect allele, and beta
+awk -v p=0.05 'NR==1 || $9 < p {print $2, $4, $7}' "$GWAS_PREFIX".mlma \
+    > "$PRS_SCORES_FILE"
+
+plink --bfile "$PLINK_PREFIX_2" \
+      --score "$PRS_SCORES_FILE" 1 2 3 header \
+      --out "$PRS_PREFIX"
+
+# --- 11b. PRS with LD clumping ---
+
+# Prepare clumping input (SNP ID and p-value)
+awk 'BEGIN{OFS="\t"; print "SNP", "P"}
+     NR>1 {print $2, $9}' "$GWAS_PREFIX".mlma > "$CLUMP_INPUT"
+
+# Perform LD clumping (r2 < 0.2, 500 kb window)
+plink --bfile "$PLINK_PREFIX_2" \
+      --clump "$CLUMP_INPUT" \
+      --clump-p1 0.05 \
+      --clump-p2 0.05 \
+      --clump-r2 0.2 \
+      --clump-kb 500 \
+      --out "$CLUMP_PLINK_PREFIX"
+
+# Extract index SNP IDs from clumped output
+awk 'NR>1 {print $3}' "$CLUMP_PLINK_PREFIX".clumped > "$CLUMPED_SNPS"
+
+# Build PRS score file restricted to clumped SNPs
+echo "SNP A1 BETA" > "$CLUMP_PRS_SCORES_FILE"
+awk 'NR==FNR {clumped[$1]; next}
+     NR>1 && $2 in clumped {print $2, $4, $7}' \
+     "$CLUMPED_SNPS" "$GWAS_PREFIX".mlma \
+     >> "$CLUMP_PRS_SCORES_FILE"
+
+plink --bfile "$PLINK_PREFIX_2" \
+      --score "$CLUMP_PRS_SCORES_FILE" 1 2 3 header \
+      --out "$CLUMP_PRS_PREFIX"
+
+# ==============================================================================
+# 12. GENOMIC ESTIMATED BREEDING VALUES (GEBVs)
+# ==============================================================================
+
+# GEBVs are obtained via the --reml-pred-rand flag, which outputs the random
+# genetic effects (u) from the REML model
+
+gcta64 --reml \
+       --grm "$GRM_PREFIX" \
+       --pheno "$PHENOTYPE_FILE" \
+       --qcovar "$PCA_PREFIX".eigenvec \
+       --reml-pred-rand \
+       --out "$GEBV_PREFIX"
+
+# ==============================================================================
+# 13. GENOMIC INFLATION FACTOR [R]
+# ==============================================================================
+
+mlma       <- read.table(paste0(GWAS_PREFIX, ".mlma"), header = TRUE)
+mlma       <- mlma[!is.na(mlma$se) & mlma$se != 0, ]
+chisq      <- (mlma$b / mlma$se)^2
+lambda_gc  <- median(chisq, na.rm = TRUE) / qchisq(0.5, df = 1)
