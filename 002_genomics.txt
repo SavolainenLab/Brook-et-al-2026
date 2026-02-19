@@ -36,7 +36,7 @@
 # Input files:
 #   - VCF_IN               : VCF file supplied by Biomarker Technologies
 #   - REFERENCE_GENOME     : Reference genome FASTA file
-#				(https://doi.org/10.1093/gigascience/gix095)
+#				(https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_008124465.1/)
 #   - CONTIG_MAP           : Chromosome renaming map for bcftools annotate
 #   - PHENOTYPE_FILE       : Drought slope estimates for GCTA (REML and MLMA)
 #
@@ -67,7 +67,7 @@
 # --- Input files ---
 VCF_IN="input.vcf.gz"
 REFERENCE_GENOME="Cocos_nucifera_ASM812446v1/ncbi_dataset/data/GCA_008124465.1/GCA_008124465.1_ASM812446v1_genomic.fna"
-#	(https://doi.org/10.1093/gigascience/gix095)
+#	(available at https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_008124465.1/)
 CONTIG_MAP="contig_map.txt"
 PHENOTYPE_FILE="drought_slope_estimates/main_dataset.txt"
 
