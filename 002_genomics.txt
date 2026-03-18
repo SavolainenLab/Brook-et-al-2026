@@ -9,7 +9,7 @@
 #
 # Authors (manuscript): Theodore S. Brook, Tom Versluys, Bi Tra Serges Doubi,
 #          Sam Acors, Jahcub Trew, Kyle Macleod, Louis Bell-Roberts,
-#          Katarina Pipoini, Jean Louis Konan, Konan Engueran Djaha, Hala N'klo,
+#          Katarina Piponi, Jean Louis Konan, Konan Engueran Djaha, Hala N'klo,
 #          Benjamin J Roberts, CM (Tilly) Collins, Matteo Fumagalli,
 #          Julien Godwin, Vincent Savolainen
 #
