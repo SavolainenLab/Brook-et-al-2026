@@ -10,4 +10,4 @@ The following repository contains the climate and yield data and analysis script
 
 5. 002_genomics.txt - all the code (BASH/Linux unless stated otherwise) used to assess the genomic basis of drought tolerance (GWAS, heritability, PRS, GBEV, genetic diversity, etc.)
 
-N.B. genomic data is available at NCBI (LINK). The reference genome used in the bioinformatic analysis is available here: https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_008124465.1/
+Note, all genomic data is available at https://dataview.ncbi.nlm.nih.gov/object/ PRJNA1435638 and the reference genome we used in the bioinformatic analysis is available at https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_008124465.1/
