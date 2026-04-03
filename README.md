@@ -1,4 +1,4 @@
-The following repository contains the climate and yield data and analysis scripts for **Brook et al. (2026) "Genomic architecture and breeding trade-offs of coconut drought tolerance"**:
+The following repository contains the climate and yield data and analysis scripts for **Brook _et al._ (2026) "Genomic architecture and breeding trade-offs of coconut drought tolerance"**:
 
 1. **climate_data.csv** - all the data climate data used in 001_modelling.R to develop drought metrics
 
